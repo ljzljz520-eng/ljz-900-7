@@ -1,0 +1,17 @@
+{
+  "name": "property-inspection",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "物业公区巡查整改系统",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "qrcode": "^1.5.4"
+  }
+}

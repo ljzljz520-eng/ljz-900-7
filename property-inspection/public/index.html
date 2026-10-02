@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>巡查上报 · 物业公区巡查整改系统</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="topbar">
+  <h1>📋 巡查问题上报</h1>
+  <div class="sub">电梯厅 / 楼道 / 垃圾房 问题拍照上报</div>
+  <div class="nav">
+    <a href="/" class="active">巡查上报</a>
+    <a href="/manager.html">经理看板</a>
+    <a href="/admin.html">员工与日志</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>上报新问题</h2>
+    <form id="form">
+      <label>区域类型（按类型自动扣分）</label>
+      <div class="area-picker">
+        <span><input type="radio" name="areaType" id="a1" value="elevator" checked><label class="opt" for="a1" style="margin:0"><div class="icon">🛗</div><div class="name">电梯厅</div><div class="pts">扣 2 分</div></label></span>
+        <span><input type="radio" name="areaType" id="a2" value="corridor"><label class="opt" for="a2" style="margin:0"><div class="icon">🚪</div><div class="name">楼道</div><div class="pts">扣 3 分</div></label></span>
+        <span><input type="radio" name="areaType" id="a3" value="garbage"><label class="opt" for="a3" style="margin:0"><div class="icon">🗑️</div><div class="name">垃圾房</div><div class="pts">扣 5 分</div></label></span>
+      </div>
+
+      <label for="location">具体位置 *</label>
+      <input type="text" id="location" placeholder="如：1栋2单元3楼电梯厅" required>
+
+      <label for="description">问题描述</label>
+      <textarea id="description" placeholder="如：地面大片污渍，垃圾桶满溢"></textarea>
+
+      <label for="inspector">巡查员姓名</label>
+      <input type="text" id="inspector" placeholder="你的姓名">
+
+      <label>问题照片 *</label>
+      <label class="file-drop">📷 点击拍照或选择图片
+        <input type="file" id="photo" accept="image/*" capture="environment" required>
+      </label>
+      <div class="preview" id="preview"><img id="previewImg" alt="预览"></div>
+
+      <button class="btn block" id="submitBtn" type="submit">提交上报</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>最近上报</h2>
+    <div id="recent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('show')"><img id="lightboxImg"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const toast = (msg, err) => {
+  const t = $('#toast'); t.textContent = msg;
+  t.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), 2600);
+};
+const fmt = (iso) => new Date(iso).toLocaleString('zh-CN', { hour12: false });
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+$('#photo').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $('#previewImg').src = URL.createObjectURL(f);
+  $('#preview').style.display = 'block';
+});
+
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#submitBtn');
+  const fd = new FormData();
+  fd.append('areaType', document.querySelector('input[name=areaType]:checked').value);
+  fd.append('location', $('#location').value);
+  fd.append('description', $('#description').value);
+  fd.append('inspector', $('#inspector').value);
+  fd.append('photo', $('#photo').files[0]);
+  btn.disabled = true; btn.textContent = '上传中…';
+  try {
+    const r = await fetch('/api/inspections', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || '提交失败');
+    toast(`✅ 上报成功（${j.inspection.areaLabel} 扣 ${j.inspection.deduction} 分）`);
+    $('#form').reset(); $('#preview').style.display = 'none';
+    loadRecent();
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; btn.textContent = '提交上报'; }
+});
+
+async function loadRecent() {
+  const list = await (await fetch('/api/inspections')).json();
+  const box = $('#recent');
+  if (!list.length) { box.innerHTML = '<div class="empty">暂无上报记录</div>'; return; }
+  box.innerHTML = list.slice(0, 6).map(i => `
+    <div class="task">
+      <div class="task-head">
+        <div>
+          <span class="badge area">${esc(i.areaLabel)}</span>
+          ${i.status === 'pending'
+            ? `<span class="badge deduct">-${i.deduction} 分 · 待整改</span>`
+            : `<span class="badge done">✓ 已整改</span>`}
+          <div class="loc">${esc(i.location)}</div>
+        </div>
+      </div>
+      ${i.description ? `<div class="desc">${esc(i.description)}</div>` : ''}
+      <div class="time">${esc(i.inspector)} · ${fmt(i.createdAt)}</div>
+    </div>`).join('');
+}
+loadRecent();
+</script>
+</body>
+</html>

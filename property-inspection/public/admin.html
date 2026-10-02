@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>员工与日志 · 物业公区巡查整改系统</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="topbar">
+  <h1>🛠️ 员工链接与日志管理</h1>
+  <div class="sub">生成专属二维码 · 重新生成 token · 停用链接 · 操作日志</div>
+  <div class="nav">
+    <a href="/">巡查上报</a>
+    <a href="/manager.html">经理看板</a>
+    <a href="/admin.html" class="active">员工与日志</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>新增员工（自动生成专属链接与二维码）</h2>
+    <form id="addForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:140px">
+        <label>姓名</label>
+        <input type="text" id="empName" placeholder="如：张保洁" required>
+      </div>
+      <div style="flex:1;min-width:120px">
+        <label>角色</label>
+        <select id="empRole">
+          <option value="cleaner">保洁</option>
+          <option value="repairer">维修</option>
+        </select>
+      </div>
+      <button class="btn" type="submit">＋ 创建</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>员工专属链接</h2>
+    <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>姓名</th><th>角色</th><th>状态</th><th>二维码</th>
+        <th class="hide-m">专属链接</th><th>操作</th>
+      </tr></thead>
+      <tbody id="empBody"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>操作日志 <button class="btn sm gray" onclick="loadLogs()" style="margin-left:auto">刷新</button></h2>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>时间</th><th>操作</th><th>详情</th><th>操作人</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const toast = (msg, err) => {
+  const t = $('#toast'); t.textContent = msg;
+  t.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), 2600);
+};
+const fmt = (iso) => new Date(iso).toLocaleString('zh-CN', { hour12: false });
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const ACTION_LABELS = {
+  CREATE_INSPECTION: '📋 问题上报', RECTIFY: '🔧 整改提交',
+  CREATE_EMPLOYEE: '👤 新增员工', REGENERATE_TOKEN: '🔑 重生成token',
+  DISABLE_EMPLOYEE: '⛔ 停用链接', ENABLE_EMPLOYEE: '✅ 启用链接',
+  ACCESS_DENIED: '🚫 访问被拒', INIT: '⚙️ 系统初始化',
+};
+
+async function copyLink(url) {
+  try { await navigator.clipboard.writeText(url); toast('链接已复制'); }
+  catch { prompt('手动复制链接：', url); }
+}
+
+async function loadEmployees() {
+  const list = await (await fetch('/api/admin/employees')).json();
+  $('#empBody').innerHTML = list.map(e => `
+    <tr>
+      <td><b>${esc(e.name)}</b></td>
+      <td>${esc(e.roleLabel)}</td>
+      <td>${e.active ? '<span class="badge done">启用中</span>' : '<span class="badge off">已停用</span>'}</td>
+      <td><img class="qr-img" src="/api/admin/employees/${e.id}/qrcode.png?t=${Date.now()}" alt="QR"></td>
+      <td class="hide-m"><div class="link-cell">${esc(e.staffUrl)}</div>
+        <button class="btn sm gray" onclick='copyLink(${JSON.stringify(e.staffUrl)})'>复制</button></td>
+      <td><div class="row-actions">
+        <button class="btn sm" onclick="regen('${e.id}','${esc(e.name)}')">重新生成 token</button>
+        <button class="btn sm ${e.active ? 'danger' : 'green'}" onclick="toggleEmp('${e.id}','${esc(e.name)}',${e.active})">${e.active ? '停用链接' : '启用链接'}</button>
+      </div></td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">暂无员工</td></tr>';
+}
+
+async function regen(id, name) {
+  if (!confirm(`确定重新生成「${name}」的 token？\n旧链接和旧二维码将立即失效！`)) return;
+  const r = await fetch(`/api/admin/employees/${id}/regenerate-token`, { method: 'POST' });
+  const j = await r.json();
+  if (!r.ok) return toast(j.error || '操作失败', true);
+  toast('✅ 已重新生成，旧链接已失效');
+  loadEmployees(); loadLogs();
+}
+
+async function toggleEmp(id, name, active) {
+  if (active && !confirm(`确定停用「${name}」的专属链接？\n停用后其无法访问和提交整改。`)) return;
+  const r = await fetch(`/api/admin/employees/${id}/toggle-active`, { method: 'POST' });
+  const j = await r.json();
+  if (!r.ok) return toast(j.error || '操作失败', true);
+  toast(j.active ? '✅ 已启用' : '⛔ 已停用');
+  loadEmployees(); loadLogs();
+}
+
+$('#addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/admin/employees', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: $('#empName').value, role: $('#empRole').value }),
+  });
+  const j = await r.json();
+  if (!r.ok) return toast(j.error || '创建失败', true);
+  toast(`✅ 已创建 ${j.employee.name} 的专属链接`);
+  $('#empName').value = '';
+  loadEmployees(); loadLogs();
+});
+
+async function loadLogs() {
+  const logs = await (await fetch('/api/admin/logs')).json();
+  $('#logBody').innerHTML = logs.map(l => `
+    <tr>
+      <td style="white-space:nowrap">${fmt(l.createdAt)}</td>
+      <td style="white-space:nowrap">${ACTION_LABELS[l.action] || esc(l.action)}</td>
+      <td>${esc(l.detail)}</td>
+      <td>${esc(l.actor)}</td>
+    </tr>`).join('') || '<tr><td colspan="4" class="empty">暂无日志</td></tr>';
+}
+
+loadEmployees(); loadLogs();
+</script>
+</body>
+</html>

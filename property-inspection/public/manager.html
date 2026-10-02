@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>经理看板 · 物业公区巡查整改系统</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="topbar">
+  <h1>📊 经理看板</h1>
+  <div class="sub">整改前后配对图片 · 扣分徽章一览</div>
+  <div class="nav">
+    <a href="/">巡查上报</a>
+    <a href="/manager.html" class="active">经理看板</a>
+    <a href="/admin.html">员工与日志</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="filters" id="statusFilter">
+    <button data-v="" class="active">全部</button>
+    <button data-v="pending">待整改</button>
+    <button data-v="rectified">已整改</button>
+  </div>
+  <div class="filters" id="areaFilter">
+    <button data-v="" class="active">全部区域</button>
+    <button data-v="elevator">🛗 电梯厅</button>
+    <button data-v="corridor">🚪 楼道</button>
+    <button data-v="garbage">🗑️ 垃圾房</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('show')"><img id="lightboxImg"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const fmt = (iso) => new Date(iso).toLocaleString('zh-CN', { hour12: false });
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let DATA = { stats: {}, inspections: [] };
+let fStatus = '', fArea = '';
+
+function zoom(src) { $('#lightboxImg').src = src; $('#lightbox').classList.add('show'); }
+
+function bindFilter(id, fn) {
+  $(id).querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    $(id).querySelectorAll('button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); fn(b.dataset.v); render();
+  }));
+}
+bindFilter('#statusFilter', v => fStatus = v);
+bindFilter('#areaFilter', v => fArea = v);
+
+async function load() {
+  DATA = await (await fetch('/api/manager/summary')).json();
+  render();
+}
+
+function render() {
+  const s = DATA.stats;
+  $('#stats').innerHTML = `
+    <div class="stat red"><div class="num">${s.pending}</div><div class="lbl">待整改</div></div>
+    <div class="stat green"><div class="num">${s.rectified}</div><div class="lbl">已整改</div></div>
+    <div class="stat blue"><div class="num">${s.rate}%</div><div class="lbl">整改率</div></div>
+    <div class="stat orange"><div class="num">-${s.pendingDeduction}</div><div class="lbl">待整改扣分</div></div>`;
+
+  let list = DATA.inspections;
+  if (fStatus) list = list.filter(i => i.status === fStatus);
+  if (fArea) list = list.filter(i => i.areaType === fArea);
+
+  if (!list.length) { $('#list').innerHTML = '<div class="card empty">没有匹配的记录</div>'; return; }
+
+  $('#list').innerHTML = list.map(i => `
+    <div class="card">
+      <div class="task-head">
+        <div>
+          <span class="badge area">${esc(i.areaLabel)}</span>
+          ${i.status === 'pending'
+            ? `<span class="badge deduct">▼ -${i.deduction} 分 · 待整改</span>`
+            : `<span class="badge done">✓ 已整改（原扣 ${i.deduction} 分）</span>`}
+          <div class="loc" style="font-weight:700;font-size:15px;margin-top:6px">📍 ${esc(i.location)}</div>
+        </div>
+      </div>
+      ${i.description ? `<div class="desc" style="color:var(--muted);font-size:13px;margin-top:6px">${esc(i.description)}</div>` : ''}
+      ${i.status === 'rectified' ? `
+      <div class="photo-pair">
+        <figure class="before"><img src="${i.photo}" onclick="zoom('${i.photo}')" loading="lazy"><figcaption>整改前 · ${esc(i.inspector)}上报</figcaption></figure>
+        <figure class="after"><img src="${i.rectification.photo}" onclick="zoom('${i.rectification.photo}')" loading="lazy"><figcaption>整改后 · ${esc(i.rectification.employeeName)}</figcaption></figure>
+      </div>
+      ${i.rectification.note ? `<div class="desc" style="font-size:13px;margin-top:8px">💬 整改说明：${esc(i.rectification.note)}</div>` : ''}
+      <div class="time" style="color:var(--muted);font-size:12px;margin-top:6px">上报 ${fmt(i.createdAt)} ｜ 整改 ${fmt(i.rectification.rectifiedAt)}</div>
+      ` : `
+      <div class="single-photo"><img src="${i.photo}" onclick="zoom('${i.photo}')" loading="lazy"></div>
+      <div class="time" style="color:var(--muted);font-size:12px;margin-top:6px">${esc(i.inspector)} · ${fmt(i.createdAt)} · 等待保洁/维修整改</div>`}
+    </div>`).join('');
+}
+
+load();
+setInterval(load, 30000); // 每 30 秒自动刷新
+</script>
+</body>
+</html>
