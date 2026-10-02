@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 物业公区巡查整改系统</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">🏢</div>
+    <h1>物业公区巡查整改系统</h1>
+    <div class="login-sub">电梯厅 · 楼道 · 垃圾房｜拍照上报 · 扫码整改 · 审核闭环</div>
+    <form id="loginForm">
+      <div class="field">
+        <label>账号</label>
+        <input type="text" id="username" placeholder="经理 / 巡查员账号" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" required>
+      </div>
+      <button class="btn block" type="submit" id="loginBtn">登 录</button>
+    </form>
+    <div class="demo-box">
+      <div style="margin-bottom:4px">🔑 演示账号：</div>
+      经理 <code>manager / manager123</code><br>
+      巡查员 <code>inspector / inspect123</code><br>
+      <div style="margin-top:6px">保洁 / 维修人员无需登录，使用经理发放的<strong>专属二维码</strong>进入整改页。</div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+if (store.token) {
+  // 尝试用已有会话直接进入
+  api('/api/auth/me').then(me => location.href = me.role === 'manager' ? '/manager' : '/inspector').catch(() => store.token = null);
+}
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = '登录中…';
+  try {
+    const data = await api('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value
+      })
+    });
+    store.token = data.token;
+    location.href = data.user.role === 'manager' ? '/manager' : '/inspector';
+  } catch (err) {
+    toast(err.message, 'err');
+    btn.disabled = false; btn.textContent = '登 录';
+  }
+});
+</script>
+</body>
+</html>

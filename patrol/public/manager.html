@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>经理控制台 · 物业公区巡查整改系统</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">🏢 公区巡查整改 · 经理台</div>
+    <div class="spacer"></div>
+    <span class="user-chip"><b data-me-name></b>（<span data-me-role></span>）</span>
+    <button class="btn secondary sm" onclick="logout()">退出</button>
+  </div>
+</header>
+
+<main class="container">
+  <div class="tabs">
+    <button class="tab active" data-tab="review">🧐 整改审核</button>
+    <button class="tab" data-tab="all">📋 全部问题单</button>
+    <button class="tab" data-tab="staff">👥 员工与二维码</button>
+    <button class="tab" data-tab="logs">🧾 操作日志</button>
+  </div>
+
+  <section id="tab-review">
+    <div class="grid cols-4" id="reviewStats"></div>
+    <div class="section-title">⏳ 待审核（整改照已提交）</div>
+    <div id="reviewList" class="issue-list"></div>
+    <div class="section-title">✅ 最近已通过 / ❌ 已驳回</div>
+    <div id="reviewedList" class="issue-list"></div>
+  </section>
+
+  <section id="tab-all" hidden>
+    <div class="filterbar">
+      <select id="allStatus">
+        <option value="">全部状态</option>
+        <option value="pending">待整改</option>
+        <option value="submitted">待审核</option>
+        <option value="approved">已通过</option>
+        <option value="rejected">已驳回</option>
+      </select>
+      <select id="allLoc">
+        <option value="">全部点位</option>
+        <option value="elevator_hall">🛗 电梯厅</option>
+        <option value="corridor">🚪 楼道</option>
+        <option value="garbage_room">🗑️ 垃圾房</option>
+      </select>
+      <select id="allAssignee"><option value="">全部整改人</option></select>
+    </div>
+    <div id="allList" class="issue-list"></div>
+  </section>
+
+  <section id="tab-staff" hidden>
+    <div class="section-title" style="justify-content:space-between;display:flex">
+      <span>保洁 / 维修人员（专属二维码 · 扣分徽章）</span>
+      <button class="btn sm" onclick="newStaff()">➕ 新建员工</button>
+    </div>
+    <div class="grid cols-3" id="workerGrid"></div>
+    <div class="section-title">经理 / 巡查员账号</div>
+    <div class="card table-wrap">
+      <table class="data" id="officeTable"></table>
+    </div>
+  </section>
+
+  <section id="tab-logs" hidden>
+    <div class="filterbar">
+      <select id="logAction"><option value="">全部动作</option></select>
+      <input type="text" id="logKeyword" placeholder="搜索操作人 / 对象 / 详情">
+      <button class="btn sm" id="logSearchBtn">查询</button>
+      <span class="spacer" style="flex:1"></span>
+      <a class="btn secondary sm" href="/api/logs/export" id="logExport">⬇️ 导出 CSV</a>
+    </div>
+    <div class="card table-wrap">
+      <table class="data" id="logTable"></table>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 4px">
+        <span class="small muted" id="logInfo"></span>
+        <span>
+          <button class="btn secondary sm" id="logPrev">上一页</button>
+          <button class="btn secondary sm" id="logNext">下一页</button>
+        </span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="/js/common.js"></script>
+<script src="/js/manager.js"></script>
+</body>
+</html>

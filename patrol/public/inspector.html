@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>巡查上报 · 物业公区巡查整改系统</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">🏢 公区巡查整改</div>
+    <div class="spacer"></div>
+    <span class="user-chip"><b data-me-name></b>（<span data-me-role></span>）</span>
+    <button class="btn secondary sm" onclick="logout()">退出</button>
+  </div>
+</header>
+
+<main class="container">
+  <div class="tabs">
+    <button class="tab active" data-tab="new">📷 上报问题</button>
+    <button class="tab" data-tab="list">📋 我的巡查单</button>
+  </div>
+
+  <section id="tab-new">
+    <div class="grid cols-3">
+      <div class="card" style="grid-column: span 2;">
+        <h2>新建巡查问题单</h2>
+        <form id="issueForm">
+          <div class="form-row">
+            <div class="field">
+              <label>点位类型 <span class="req">*</span></label>
+              <select name="location_type" required>
+                <option value="">请选择…</option>
+                <option value="elevator_hall">🛗 电梯厅</option>
+                <option value="corridor">🚪 楼道</option>
+                <option value="garbage_room">🗑️ 垃圾房</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>具体位置 <span class="req">*</span></label>
+              <input type="text" name="location_detail" required maxlength="100" placeholder="如：3栋1单元电梯厅">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>指派整改人 <span class="req">*</span></label>
+              <select name="assignee_id" required><option value="">加载中…</option></select>
+            </div>
+            <div class="field">
+              <label>扣分值（1–20 分）</label>
+              <input type="number" name="points" value="2" min="1" max="20">
+            </div>
+          </div>
+          <div class="field">
+            <label>整改时限（小时）</label>
+            <input type="number" name="due_hours" value="48" min="1" max="720">
+          </div>
+          <div class="field">
+            <label>问题描述</label>
+            <textarea name="description" maxlength="500" placeholder="描述卫生 / 设施问题，如：地面有烟头纸屑、灯不亮…"></textarea>
+          </div>
+          <div class="field">
+            <label>问题照片（1–6 张，单张 ≤10MB）<span class="req">*</span></label>
+            <input type="file" id="photoInput" accept="image/*" multiple hidden>
+            <div class="uploader" id="uploader">
+              <div class="big">📷</div>
+              <div>点击选择照片，或将照片拖拽到此处</div>
+              <div class="small muted" id="photoCount">尚未选择</div>
+            </div>
+              <div class="upload-preview" id="preview"></div>
+          </div>
+          <button class="btn" type="submit" id="submitBtn">✅ 提交问题单</button>
+        </form>
+      </div>
+      <div>
+        <div class="card">
+          <h2>📌 上报说明</h2>
+          <ul class="small" style="padding-left:18px;margin:6px 0;color:#4b5563;line-height:2">
+            <li>电梯厅 / 楼道问题可指派<strong>维修</strong>或<strong>保洁</strong></li>
+            <li>垃圾房一般指派<strong>保洁</strong>人员</li>
+            <li>提交后整改人扫码上传整改照</li>
+            <li>经理审核通过后闭环；驳回可重新整改</li>
+            <li>扣分计入整改人徽章统计</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h2>📊 我的统计</h2>
+          <div id="myStats" class="small muted">加载中…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-list" hidden>
+    <div class="filterbar">
+      <select id="fStatus">
+        <option value="">全部状态</option>
+        <option value="pending">待整改</option>
+        <option value="submitted">待审核</option>
+        <option value="approved">已通过</option>
+        <option value="rejected">已驳回</option>
+      </select>
+      <select id="fLoc">
+        <option value="">全部点位</option>
+        <option value="elevator_hall">🛗 电梯厅</option>
+        <option value="corridor">🚪 楼道</option>
+        <option value="garbage_room">🗑️ 垃圾房</option>
+      </select>
+      <span class="small muted">仅显示你创建的巡查单</span>
+    </div>
+    <div id="issueList" class="issue-list"></div>
+  </section>
+</main>
+
+<script src="/js/common.js"></script>
+<script src="/js/inspector.js"></script>
+</body>
+</html>
